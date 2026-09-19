@@ -1,0 +1,62 @@
+// Manages train assembly, length calculation, and real-time security monitoring
+class TrainConsistService {
+    private String trainId;
+    private String currentGpsLocation;
+    private List<FreightCar> cars;
+    private List<TheftAlert> activeAlerts;
+
+    public TrainConsistService(String trainId, String initialGpsLocation) {
+        this.trainId = trainId;
+        this.currentGpsLocation = initialGpsLocation;
+        this.cars = new ArrayList<>();
+        this.activeAlerts = new ArrayList<>();
+    }
+
+    public void addCar(FreightCar car) {
+        this.cars.add(car);
+    }
+
+    // Calculates total train length for siding and routing limits
+    public double calculateTotalLength() {
+        return cars.stream()
+                   .mapToDouble(FreightCar::getLengthInFeet)
+                   .sum();
+    }
+
+    public void updateGpsLocation(String newGps) {
+        this.currentGpsLocation = newGps;
+    }
+
+    // Simulates IoT telematics sensor inputs checking for breach events
+    public void processSensorTelemetry(String carId, boolean doorStatus, boolean sealStatus) {
+        for (FreightCar car : cars) {
+            if (car.getCarId().equals(carId)) {
+                car.setDoorLocked(doorStatus);
+                car.setSealIntact(sealStatus);
+
+                // Theft logic: Unlocked door or broken seal while train is in transit
+                if (!sealStatus || !doorStatus) {
+                    AlertSeverity severity = (!sealStatus && !doorStatus) ? AlertSeverity.CRITICAL : AlertSeverity.HIGH;
+                    TheftAlert alert = new TheftAlert(
+                            "ALT-" + System.currentTimeMillis(),
+                            this.trainId,
+                            carId,
+                            this.currentGpsLocation,
+                            severity
+                    );
+                    activeAlerts.add(alert);
+                    triggerSecurityNotification(alert);
+                }
+            }
+        }
+    }
+
+    private void triggerSecurityNotification(TheftAlert alert) {
+        // In production, this would emit an event to Kafka or trigger an alert dashboard via WebSockets
+        System.err.println("SECURITY EVENT TRIGGERED: " + alert);
+    }
+
+    public List<TheftAlert> getActiveAlerts() {
+        return activeAlerts;
+    }
+}
